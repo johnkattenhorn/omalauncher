@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -190,19 +192,22 @@ internal fun FolderPanel(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        folder.apps.forEachIndexed { i, app ->
-            if (app.key == carried) return@forEachIndexed
-            val r = geometry.app(i)
-            key(app.key) {
-                // Apps making way for a dragged one slide to their new places.
-                val at = animateIntOffsetAsState(IntOffset(r.left, r.top))
-                render(
-                    app,
-                    Modifier
-                        .offset { at.value }
-                        .size(with(density) { r.width.toDp() }, with(density) { r.height.toDp() }),
-                    false,
-                )
+        val panel = Palette.background
+        CompositionLocalProvider(LocalLabelBackdrop provides remember(panel) { solidBackdrop(panel) }) {
+            folder.apps.forEachIndexed { i, app ->
+                if (app.key == carried) return@forEachIndexed
+                val r = geometry.app(i)
+                key(app.key) {
+                    // Apps making way for a dragged one slide to their new places.
+                    val at = animateIntOffsetAsState(IntOffset(r.left, r.top))
+                    render(
+                        app,
+                        Modifier
+                            .offset { at.value }
+                            .size(with(density) { r.width.toDp() }, with(density) { r.height.toDp() }),
+                        false,
+                    )
+                }
             }
         }
     }
