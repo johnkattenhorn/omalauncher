@@ -105,6 +105,8 @@ fun StyleScreen(
             val style = runtime.style
             Flag("icons", "monochrome", "colored", style, Style.MONOCHROME_ICONS)
             Flag("home apps", "boxed", "icon only", style, Style.APP_TILES)
+            // Boxed apps have their names on the tile's glass, in the theme's text color.
+            if (!style.style[Style.APP_TILES]) ChoiceOption("labels", Style.LABELS, style)
             Flag("recent apps", "shown", "hidden", style, Style.RECENT_APPS)
             CountOption("columns", Style.COLUMNS, style)
             Flag("notification dots", "shown", "hidden", style, Style.NOTIFICATION_DOTS)
