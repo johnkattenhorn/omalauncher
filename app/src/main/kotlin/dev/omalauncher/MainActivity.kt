@@ -3,6 +3,7 @@ package dev.omalauncher
 import android.app.ActivityManager
 import android.app.role.RoleManager
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import dev.omalauncher.theme.Style
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.ui.applySystemBars
 import dev.omalauncher.ui.LauncherRoot
@@ -37,6 +39,11 @@ class MainActivity : ComponentActivity() {
         }
         handleDebugExec(intent)
         handleSharedWidget(intent)
+        lifecycleScope.launch {
+            snapshotFlow { runtime.style.style[Style.ROTATION] }.collect { rotation ->
+                requestedOrientation = if (rotation == "portrait") ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        }
         // Asked on arriving at the home screen, not over the welcome screen of a fresh install,
         // and once nothing else is in front: not over the notification permission dialog that
         // opting into Linux there brings up.

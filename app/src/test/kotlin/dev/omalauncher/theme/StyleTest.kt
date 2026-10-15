@@ -123,6 +123,16 @@ class StyleTest {
         }
     }
 
+    @Test fun rotationFollowsThePhoneOrStaysPortrait() {
+        assertEquals("follow", Style()[Style.ROTATION])
+        val portrait = Toml.parse("[home]\nrotation = \"Portrait\"\n")
+        assertEquals("portrait", StyleFile.decode(portrait).style[Style.ROTATION])
+        assertEquals("version = 1\n\n[home]\nrotation = \"portrait\"\n", Toml.write(StyleFile.encode(portrait, Style().with(Style.ROTATION, "portrait")), ""))
+        val decoded = StyleFile.decode(Toml.parse("[home]\nrotation = \"landscape\"\n"), Style().with(Style.ROTATION, "portrait"))
+        assertEquals("portrait", decoded.style[Style.ROTATION])
+        assertEquals(listOf("home.rotation: takes \"follow\" or \"portrait\"; keeping \"portrait\""), decoded.problems)
+    }
+
     @Test fun absentKeysAreDefaultsNotThePreviousValues() {
         val previous = Style().with(Style.GAPS_IN, 10.0)
         assertEquals(6.0, StyleFile.decode(emptyMap(), previous).style[Style.GAPS_IN], 0.0)

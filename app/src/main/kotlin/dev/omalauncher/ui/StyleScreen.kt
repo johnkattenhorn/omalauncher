@@ -107,6 +107,7 @@ fun StyleScreen(
             Flag("home apps", "boxed", "icon only", style, Style.APP_TILES)
             Flag("recent apps", "shown", "hidden", style, Style.RECENT_APPS)
             CountOption("columns", Style.COLUMNS, style)
+            ChoiceOption("rotation", Style.ROTATION, style)
             NumberOption("corners", Corners.entries.map { it.label to it.scale.toDouble() }, Style.CORNER_SCALE, style)
             // Like Hyprland's gaps_in, gaps_out and border_size; the colors are in style.toml.
             Heading("widgets")
@@ -464,6 +465,17 @@ private fun CountOption(
 ) {
     val counts = setting.range.toList()
     StyleOption(label, counts.map(Int::toString), counts.indexOf(style.style[setting])) { i -> style.update { it.with(setting, counts[i]) } }
+}
+
+/** A [Style] choice as its options. */
+@Composable
+private fun ChoiceOption(
+    label: String,
+    setting: Setting.Choice,
+    style: StyleStore,
+) {
+    val options = setting.options
+    StyleOption(label, options, options.indexOf(style.style[setting])) { i -> style.update { it.with(setting, options[i]) } }
 }
 
 /**
