@@ -203,6 +203,72 @@ class WidgetEngine(
         }
     }
 
+    /** The home screen as a layout file (see [HomeLayout]): pages numbered from 1 again, tiles not placed yet left out. */
+    fun exportLayout() =
+        HomeLayout(
+            pages.map { page ->
+                itemsOn(page).mapNotNull { item ->
+                    val c = layout.cell(item.key) ?: return@mapNotNull null
+                    when (item) {
+                        is WidgetItem -> LayoutEntry.Widget(item.key, c.x, c.y, c.w, c.h)
+                        is Shortcut -> layoutPin(item)?.let { LayoutEntry.Pin(it, c.x, c.y) }
+                        is Folder -> LayoutEntry.Folder(item.name, item.apps.mapNotNull(::layoutPin), c.x, c.y)
+                    }
+                }
+            },
+        )
+
+    private fun layoutPin(s: Shortcut): LayoutPin? =
+        s.component?.let { LayoutPin.App(it.flattenToString()) } ?: s.linux?.let(LayoutPin::Linux) ?: s.androidShortcut?.let(LayoutPin::AppShortcut)
+
+    /**
+     * Sets the home screen up as [read] says, as far as this phone has its apps and widgets (see [resolveLayout]):
+     * every pinned app and folder is replaced, and listed widgets move to their cells. Widgets it doesn't list stay
+     * where they are, unless a listed tile now covers them: then they're placed afresh.
+     */
+    fun importLayout(read: LayoutRead.Read): LayoutImport {
+        val catalog = runtime.androidApps
+
+        fun pin(
+            p: LayoutPin,
+            page: Int,
+        ): Shortcut? =
+            when (p) {
+                is LayoutPin.App -> catalog.apps.filter { it.component.flattenToString() == p.component }.ownProfileFirst { it.profile }?.let { pinOf(it, page) }
+                is LayoutPin.Linux -> pinOf(p.app, page)
+                is LayoutPin.AppShortcut -> catalog.shortcuts.filter { it.ref == p.ref }.ownProfileFirst { it.profile }?.let { pinOf(it, page) }
+            }
+        val result = resolveLayout(read, installed = { pin(it, 1) != null }, widgets = specs.map { it.file.name }.toSet())
+        val stamp = System.currentTimeMillis().toString(36)
+        val placed = ArrayList<Pair<HomeItem, Cell>>()
+        val taken = ArrayList<Pair<Int, Cell>>()
+        result.layout.pages.forEachIndexed { i, entries ->
+            val page = i + 1
+            entries.forEachIndexed { n, e ->
+                val cell = if (e is LayoutEntry.Widget) Cell(e.x, e.y, e.w, e.h) else Cell(e.x, e.y, 1, 1)
+                taken += page to cell
+                when (e) {
+                    is LayoutEntry.Pin -> pin(e.pin, page)?.let { placed += it to cell }
+                    is LayoutEntry.Folder -> placed += Folder("folder:$stamp-$page-$n", page, e.apps.mapNotNull { pin(it, page) }, e.name) to cell
+                    is LayoutEntry.Widget -> {
+                        specs.firstOrNull { it.file.name == e.file }?.let { moveToPage(WidgetItem(it), page) }
+                        layout.set(e.file, cell)
+                    }
+                }
+            }
+        }
+        val listed = result.layout.pages.flatten().filterIsInstance<LayoutEntry.Widget>().map { it.file }.toSet()
+        for (spec in specs) {
+            if (spec.file.name in listed) continue
+            val cell = layout.cell(spec.file.name) ?: continue
+            if (taken.any { (page, c) -> page == spec.page && c.overlaps(cell) }) layout.unplace(spec.file.name)
+        }
+        shortcuts.replace(placed)
+        return result
+    }
+
+    private fun <T> List<T>.ownProfileFirst(profile: (T) -> Long?) = minByOrNull { profile(it) != null }
+
     private fun agentWidgetFile(agent: Agent) = "agent-${agent.bin}.owl"
 
     /** File names of the widgets this app ships, defaults and examples alike. */

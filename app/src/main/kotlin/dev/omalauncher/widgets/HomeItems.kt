@@ -210,17 +210,17 @@ class Shortcuts(
     fun addAndroid(
         app: AndroidApp,
         page: Int,
-    ) = add(Shortcut("app:" + app.key, page, app.label, component = app.component, profile = app.profile))
+    ) = add(pinOf(app, page))
 
     fun addLinux(
         app: LinuxApp,
         page: Int,
-    ) = add(Shortcut("linux:" + app.id, page, app.name, linux = app))
+    ) = add(pinOf(app, page))
 
     fun addAndroidShortcut(
         shortcut: AndroidShortcut,
         page: Int,
-    ) = add(Shortcut(keyOf(shortcut), page, shortcut.label, profile = shortcut.profile, androidShortcut = shortcut.ref))
+    ) = add(pinOf(shortcut, page))
 
     /** Takes [shortcut] off the home screen, cell and all, once it's removed from the phone. */
     fun removeAndroidShortcut(shortcut: AndroidShortcut) {
@@ -230,7 +230,29 @@ class Shortcuts(
         remove(key)
     }
 
-    private fun keyOf(shortcut: AndroidShortcut) = "shortcut:" + shortcut.key
+    /**
+     * Replaces every pinned app and folder with [placed], each at its cell; a folder brings its apps along.
+     * A folder of fewer than two apps goes, as when its apps are dragged out.
+     */
+    fun replace(placed: List<Pair<HomeItem, Cell>>) {
+        (items.map { it.key } + folderEntries.map { it.key }).forEach(layout::unplace)
+        items.clear()
+        folderEntries.clear()
+        for ((item, cell) in placed) {
+            when (item) {
+                is Shortcut -> items += item
+                is Folder -> {
+                    folderEntries += FolderEntry(item.key, item.page, item.name)
+                    items += item.apps.map { it.copy(page = item.page, folder = item.key) }
+                }
+                is WidgetItem -> continue
+            }
+            layout.set(item.key, cell)
+        }
+        tidy()
+        layout.save()
+        save()
+    }
 
     /** Pinning an app that's already on the home screen moves it to [Shortcut.page], out of its folder. */
     private fun add(shortcut: Shortcut) {
@@ -320,3 +342,21 @@ internal fun linuxSnapshot(o: JSONObject) =
         wmClass = o.optString("wmClass").ifEmpty { null },
         icon = o.optString("icon").ifEmpty { null },
     )
+
+/** [app] as pinned to home [page]. */
+fun pinOf(
+    app: AndroidApp,
+    page: Int,
+) = Shortcut("app:" + app.key, page, app.label, component = app.component, profile = app.profile)
+
+fun pinOf(
+    app: LinuxApp,
+    page: Int,
+) = Shortcut("linux:" + app.id, page, app.name, linux = app)
+
+fun pinOf(
+    shortcut: AndroidShortcut,
+    page: Int,
+) = Shortcut(keyOf(shortcut), page, shortcut.label, profile = shortcut.profile, androidShortcut = shortcut.ref)
+
+private fun keyOf(shortcut: AndroidShortcut) = "shortcut:" + shortcut.key

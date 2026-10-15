@@ -1,6 +1,9 @@
 package dev.omalauncher.ui
 
 import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +19,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,6 +31,13 @@ import androidx.compose.ui.unit.dp
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.JobState
 import dev.omalauncher.linux.LinuxState
+import dev.omalauncher.widgets.LayoutRead
+import dev.omalauncher.widgets.parseLayout
+import dev.omalauncher.widgets.summary
+import dev.omalauncher.widgets.toJson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** The launcher's settings hub, opened from the gear next to the drawer's search. */
 @Composable
@@ -90,6 +104,68 @@ fun SettingsScreen(
                     Symbol(Glyph.ChevronRight, Palette.accent, fontSize = TextSize.Title)
                 }
             }
+            item(key = "home layout") { LayoutRow(runtime) }
+        }
+    }
+}
+
+/**
+ * The home screen to a file and back: export writes every page's apps, folders and widgets at their cells; import
+ * replaces the home screen with a file's, once the user agrees, and says what it placed and what it left out.
+ */
+@Composable
+private fun LayoutRow(runtime: Runtime) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pending by remember { mutableStateOf<LayoutRead.Read?>(null) }
+    fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+    val exportTo =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            uri ?: return@rememberLauncherForActivityResult
+            val text = runtime.widgets.exportLayout().toJson()
+            scope.launch {
+                val saved =
+                    withContext(Dispatchers.IO) {
+                        runCatching { context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray()) } != null }.getOrDefault(false)
+                    }
+                toast(if (saved) "home layout saved" else "couldn't save the home layout")
+            }
+        }
+    val importFrom =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri ?: return@rememberLauncherForActivityResult
+            scope.launch {
+                val text = withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() } }.getOrNull() }
+                when (val read = text?.let(::parseLayout)) {
+                    null -> toast("couldn't read the file")
+                    is LayoutRead.Rejected -> toast(read.reason)
+                    is LayoutRead.Read -> pending = read
+                }
+            }
+        }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(LauncherStyle.shape(12.dp))
+            .background(Palette.surface)
+            .padding(14.dp),
+    ) {
+        BasicText("home layout", style = Mono.copy(fontSize = TextSize.Item))
+        BasicText("pages, folders and widgets, to a file or from one", style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
+        Row {
+            BracketAction("export", Palette.accent) { exportTo.launch("omalauncher-layout.json") }
+            BracketAction("import", Palette.accent) { importFrom.launch(arrayOf("application/json", "*/*")) }
+        }
+    }
+    pending?.let { read ->
+        ConfirmDialog(
+            "replace the home screen?",
+            "every app and folder on it is replaced by the file's; widgets it lists move to their places.",
+            "replace",
+            onDismiss = { pending = null },
+        ) {
+            pending = null
+            toast(runtime.widgets.importLayout(read).summary())
         }
     }
 }

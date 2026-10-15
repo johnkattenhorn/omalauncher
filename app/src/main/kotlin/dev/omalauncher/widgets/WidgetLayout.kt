@@ -176,6 +176,11 @@ class WidgetLayout(
         return null
     }
 
+    /** Takes [name]'s cell away but not its page, so it's placed afresh in the first free spot there. Not saved; [save] does. */
+    fun unplace(name: String) {
+        cells.remove(name)
+    }
+
     /** Forgets everything about [name]: its cell and page. */
     fun remove(name: String) {
         cells.remove(name)
