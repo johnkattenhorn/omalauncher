@@ -579,7 +579,6 @@ internal fun HomeGrid(
                                             val c = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
                                             c.consume()
                                             if (!c.pressed) break
-                                            // A widget wider at its smallest than the grid fills it.
                                             val minW = item.minSize.first.coerceAtMost(g.cols)
                                             val minH = item.minSize.second
                                             val p = g.local(c.position, selSide)
