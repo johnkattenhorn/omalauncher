@@ -24,6 +24,7 @@ import dev.omalauncher.linux.Bootstrap
 import dev.omalauncher.linux.EDIT_COMMAND
 import dev.omalauncher.linux.FILES_COMMAND
 import dev.omalauncher.linux.Gpu
+import dev.omalauncher.linux.LabelFont
 import dev.omalauncher.linux.LinuxApp
 import dev.omalauncher.linux.OpenBridge
 import dev.omalauncher.linux.Pacman
@@ -43,6 +44,7 @@ import dev.omalauncher.theme.StyleStore
 import dev.omalauncher.theme.ThemeStore
 import dev.omalauncher.ui.Gestures
 import dev.omalauncher.ui.KeyboardBridge
+import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.SettingsPage
 import dev.omalauncher.ui.TerminalTiles
 import dev.omalauncher.ui.WindowManager
@@ -62,7 +64,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
@@ -82,6 +87,7 @@ class Runtime(
     val terminals = TerminalTiles(this)
     val style = StyleStore(context)
     val terminalFont = TerminalFont(proot, style)
+    private val labelFont = LabelFont(context, proot, style)
     val gestures = Gestures(context)
     val linuxApps = mutableStateListOf<LinuxApp>()
 
@@ -161,6 +167,18 @@ class Runtime(
         // foot.ini follows the terminal settings, from the Style menu or the file alike.
         scope.launch {
             snapshotFlow { style.style[Style.TERMINAL_FONT] to style.style[Style.TERMINAL_TEXT] }.drop(1).collect { terminalFont.write() }
+        }
+        scope.launch {
+            val linuxInstalled =
+                bootstrap.state.mapNotNull {
+                    when (it) {
+                        LinuxState.Installed -> true
+                        LinuxState.NotInstalled -> false
+                        else -> null
+                    }
+                }
+            combine(snapshotFlow { style.style[Style.LABEL_FONT] }, linuxInstalled.distinctUntilChanged(), ::Pair)
+                .collectLatest { (family, linux) -> LauncherStyle.labelFont = labelFont.load(family, linux) }
         }
         scope.launch {
             snapshotFlow { style.style[Style.NOTIFICATION_DOTS] }.collectLatest { on ->

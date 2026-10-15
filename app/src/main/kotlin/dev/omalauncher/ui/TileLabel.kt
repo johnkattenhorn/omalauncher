@@ -133,7 +133,7 @@ internal fun TileLabel(text: String) {
     // Recomposes only when the ink changes, not each frame the tile moves.
     val ink by remember(backdrop) { derivedStateOf { labelInk(backdrop, bounds) } }
     val bare = LauncherStyle.bareAppIcons
-    val style = Mono.copy(fontSize = TextSize.Small, textAlign = TextAlign.Center)
+    val style = Mono.copy(fontSize = TextSize.Small, textAlign = TextAlign.Center, fontFamily = LauncherStyle.labelFont, fontWeight = LauncherStyle.labelWeight)
     BasicText(
         text,
         modifier = if (bare && LauncherStyle.style[Style.LABELS] == "auto") Modifier.onGloballyPositioned { bounds = it.boundsInWindow() } else Modifier,

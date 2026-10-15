@@ -132,6 +132,11 @@ class StyleStore(
         if (reported.add(problem)) saveErrors()
     }
 
+    /** Takes back what [report] said about [key], which holds now: a font that needed Linux, once it's installed. */
+    fun withdraw(key: String) {
+        if (reported.removeAll { it.startsWith("$key:") }) saveErrors()
+    }
+
     /** defaults.toml, which always matches this launcher's settings. */
     fun managed(): List<Managed> = listOf(Managed.text(File(dir, DEFAULTS), Policy.Owned) { StyleFile.defaultsText() })
 

@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -109,6 +110,17 @@ object LauncherStyle {
 
     /** The strip of recently used apps above the bar on home. */
     val recentApps get() = style[Style.RECENT_APPS]
+
+    /** The names under app and folder icons; Runtime loads home.label-font into it. */
+    var labelFont: FontFamily by mutableStateOf(FontFamily.Monospace)
+
+    val labelWeight: FontWeight
+        get() =
+            when (style[Style.LABEL_WEIGHT]) {
+                "medium" -> FontWeight.Medium
+                "bold" -> FontWeight.Bold
+                else -> FontWeight.Normal
+            }
 
     /** The outline of tiles, the prompt bar and the rails. */
     val tileBorder: Color get() = color(style[Style.TILE_BORDER], Palette.border)
