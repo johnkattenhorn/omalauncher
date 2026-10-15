@@ -31,6 +31,26 @@ window opens as its own Android task, with its own card in Recents.
 Needs an arm64 phone with Android 10 or newer. Without Linux, the launcher still
 has the themes, wallpapers, Android apps and the widgets that don't run commands.
 
+## This fork's `daily` branch
+
+John Kattenhorn's daily build, on top of upstream `main`. It installs beside the Play
+app as `dev.omalauncher.john` (`./gradlew :app:assembleRelease`), so the two keep
+separate data and Linux systems. Everything below is a setting in settings › style or
+`~/.config/omalauncher/style/style.toml`, and each setting's default is upstream's behaviour.
+
+- **Named folders**: shown under the tile and atop the open folder (upstream PR #133).
+- **Grid columns** (`home.columns` = 4, 5 or 6): fewer columns make tiles tall enough for
+  their names on phones with a larger display size.
+- **Label colour** (`home.labels` = light, dark or auto): auto picks light or dark text per
+  tile from the wallpaper behind it, with a firmer halo where neither reads well.
+- **Label font** (`home.label-font`, `home.label-weight`): any font installed in Linux, such
+  as JetBrains Mono, at regular, medium or bold.
+- **Notification dots** (`home.notification-dots`) on app tiles, folders and the drawer.
+- **New apps on home** (`home.add-new-apps`): new installs go in the first free cell.
+- **Portrait home** (`home.rotation` = follow or portrait).
+- **Home layout export and import**: settings › home layout, as a JSON file. This overlaps the
+  backup proposal in upstream issue #57, so it stays in this fork.
+
 ## Using it
 
 The bar: the one input at the bottom of the home screen opens apps and asks
