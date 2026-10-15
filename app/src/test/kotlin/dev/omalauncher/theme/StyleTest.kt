@@ -143,6 +143,28 @@ class StyleTest {
         assertEquals(listOf("home.labels: takes \"light\" or \"dark\" or \"auto\"; keeping \"light\""), decoded.problems)
     }
 
+    @Test fun labelFontAndWeightReadFromTheHomeSection() {
+        val table = Toml.parse("[home]\nlabel-font = \" JetBrains Mono \"\nlabel-weight = \"Medium\"\n")
+        val style = StyleFile.decode(table).style
+        assertEquals("JetBrains Mono", style[Style.LABEL_FONT])
+        assertEquals("medium", style[Style.LABEL_WEIGHT])
+        assertEquals("version = 1\n\n[home]\nlabel-font = \"JetBrains Mono\"\nlabel-weight = \"medium\"\n", Toml.write(StyleFile.encode(table, style), ""))
+    }
+
+    @Test fun labelFontIsSystemMonospaceAndRegularUnlessSet() {
+        assertEquals(null, StyleFile.decode(Toml.parse("[home]\ncolumns = 5\n")).style[Style.LABEL_FONT])
+        val decoded = StyleFile.decode(Toml.parse("[home]\nlabel-font = \"\"\nlabel-weight = \"heavy\"\n"))
+        assertEquals(null, decoded.style[Style.LABEL_FONT])
+        assertEquals("regular", decoded.style[Style.LABEL_WEIGHT])
+        assertEquals(
+            listOf(
+                "home.label-font: takes a name in quotes; keeping it unset",
+                "home.label-weight: takes \"regular\" or \"medium\" or \"bold\"; keeping \"regular\"",
+            ),
+            decoded.problems,
+        )
+    }
+
     @Test fun absentKeysAreDefaultsNotThePreviousValues() {
         val previous = Style().with(Style.GAPS_IN, 10.0)
         assertEquals(6.0, StyleFile.decode(emptyMap(), previous).style[Style.GAPS_IN], 0.0)
