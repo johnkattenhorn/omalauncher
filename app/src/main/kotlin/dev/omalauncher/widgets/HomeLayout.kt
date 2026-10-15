@@ -22,7 +22,7 @@ sealed interface LayoutPin {
     ) : LayoutPin
 }
 
-/** One thing on a home page, its top-left at cell [x], [y] of the [GRID_COLUMNS]-wide grid. Apps and folders are 1x1. */
+/** One thing on a home page, its top-left at cell [x], [y] of the [CLASSIC_COLUMNS]-wide grid. Apps and folders are 1x1. */
 sealed interface LayoutEntry {
     val x: Int
     val y: Int
@@ -103,12 +103,12 @@ private fun parseEntry(
 ): LayoutEntry? {
     val x = o.getInt("x")
     val y = o.getInt("y")
-    if (x !in 0 until GRID_COLUMNS || y < 0) return null
+    if (x !in 0 until CLASSIC_COLUMNS || y < 0) return null
     return when {
         o.has("widget") -> {
             val w = o.getInt("w")
             val h = o.getInt("h")
-            if (w !in 1..GRID_COLUMNS - x || h < 1) return null
+            if (w !in 1..CLASSIC_COLUMNS - x || h < 1) return null
             LayoutEntry.Widget(o.getString("widget"), x, y, w, h)
         }
         o.has("folder") -> {
