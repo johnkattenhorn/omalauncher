@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import dev.omalauncher.AndroidApp
 import dev.omalauncher.BuildConfig
 import dev.omalauncher.LauncherData
 import dev.omalauncher.Runtime
@@ -187,6 +188,17 @@ class WidgetEngine(
         val page = pages.firstOrNull { it > item.page && layout.claim(item, itemsOn(it)) } ?: ((pages.maxOrNull() ?: 1) + 1)
         moveToPage(item, page)
         return page
+    }
+
+    /**
+     * Pins [app], installed just now, as stock launchers do: in the first free cell from the last page with apps on it
+     * (see [newAppPage]). An app pinned already, as one reinstalled can be, stays where it is.
+     */
+    fun pinNew(app: AndroidApp) {
+        val pin = pinOf(app, 0)
+        if (shortcuts.items.any { it.key == pin.key }) return
+        val page = newAppPage(pages, withApps = { p -> itemsOn(p).any { it !is WidgetItem } }, fits = { p -> layout.claim(pin.copy(page = p), itemsOn(p)) })
+        shortcuts.addAndroid(app, page)
     }
 
     /** Puts [item] on [page]: a widget through its page override, a shortcut in place. */
@@ -828,4 +840,17 @@ class WidgetEngine(
                 "terminals' font) is ~/${StyleStore.GUEST_DIR}/${StyleStore.FILE}; ${StyleStore.DEFAULTS} next to it lists every " +
                 "setting with its default and range. Changes show within a second; ${StyleStore.ERRORS} there says what was ignored and why.\n"
     }
+}
+
+/**
+ * The page an app installed just now goes to: the first of [pages] it [fits] on, from the last one [withApps] (or the
+ * first page, while none has any), or a new page after them all.
+ */
+internal fun newAppPage(
+    pages: List<Int>,
+    withApps: (Int) -> Boolean,
+    fits: (Int) -> Boolean,
+): Int {
+    val from = pages.lastOrNull(withApps) ?: pages.first()
+    return pages.firstOrNull { it >= from && fits(it) } ?: (pages.max() + 1)
 }

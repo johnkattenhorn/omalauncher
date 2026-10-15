@@ -156,6 +156,7 @@ class Runtime(
         scope.launch {
             snapshotFlow { style.style[Style.TERMINAL_FONT] to style.style[Style.TERMINAL_TEXT] }.drop(1).collect { terminalFont.write() }
         }
+        androidApps.onInstalled = { app -> if (style.style[Style.ADD_NEW_APPS]) widgets.pinNew(app) }
         androidApps.start()
         // Omarchy's Super bindings inside Linux windows; the home screen handles its own (see MainActivity).
         keyboard.onShortcut = { code ->

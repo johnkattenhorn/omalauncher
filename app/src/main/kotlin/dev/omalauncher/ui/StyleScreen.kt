@@ -107,6 +107,7 @@ fun StyleScreen(
             Flag("home apps", "boxed", "icon only", style, Style.APP_TILES)
             Flag("recent apps", "shown", "hidden", style, Style.RECENT_APPS)
             CountOption("columns", Style.COLUMNS, style)
+            Flag("new apps", "on home", "drawer only", style, Style.ADD_NEW_APPS)
             ChoiceOption("rotation", Style.ROTATION, style)
             NumberOption("corners", Corners.entries.map { it.label to it.scale.toDouble() }, Style.CORNER_SCALE, style)
             // Like Hyprland's gaps_in, gaps_out and border_size; the colors are in style.toml.

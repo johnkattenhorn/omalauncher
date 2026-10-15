@@ -227,10 +227,20 @@ class AndroidAppCatalog(
     /** Icon edge in px: the drawer's 52dp icon at this screen's density. */
     private val iconPx = (52 * context.resources.displayMetrics.density).toInt().coerceAtLeast(48)
 
+    /** Called with an app installed in the launcher's own profile, not updated, once it's listed: its first launcher activity. */
+    var onInstalled: (AndroidApp) -> Unit = {}
+
+    /** Packages [onInstalled] is still to hear about; the next load to finish lists them. */
+    private val installed = HashSet<String>()
+
     fun start() {
         launcherApps.registerCallback(
             object : LauncherApps.Callback() {
-                override fun onPackageAdded(packageName: String, user: UserHandle) = reload()
+                // Android calls it for a new install only; an update comes as onPackageChanged.
+                override fun onPackageAdded(packageName: String, user: UserHandle) {
+                    if (user == Process.myUserHandle()) installed += packageName
+                    reload()
+                }
 
                 override fun onPackageRemoved(packageName: String, user: UserHandle) = reload()
 
@@ -536,6 +546,8 @@ class AndroidAppCatalog(
                     apps.clear()
                     apps += list
                 }
+                for (pkg in installed) list.firstOrNull { it.component.packageName == pkg && it.profile == null }?.let(onInstalled)
+                installed.clear()
                 made = made.sortedWith(compareBy(shortcutOrder) { it.second })
                 val pinned = made.map { it.second }
                 if (pinned != shortcuts.toList()) {
