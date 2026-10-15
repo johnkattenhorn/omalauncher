@@ -50,8 +50,11 @@ android {
         }
     }
 
+    defaultConfig { manifestPlaceholders["appLabel"] = "Omalauncher" }
     buildTypes {
         release {
+            applicationIdSuffix = ".john"
+            manifestPlaceholders["appLabel"] = "Omalauncher (john)"
             // Shrinks the APK and drops what the app doesn't use, like the owl module's unused parts.
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
