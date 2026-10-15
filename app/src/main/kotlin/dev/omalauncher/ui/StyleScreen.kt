@@ -107,6 +107,8 @@ fun StyleScreen(
             Flag("home apps", "boxed", "icon only", style, Style.APP_TILES)
             // Boxed apps have their names on the tile's glass, in the theme's text color.
             if (!style.style[Style.APP_TILES]) ChoiceOption("labels", Style.LABELS, style)
+            LabelFontOption(style, linux == LinuxState.Installed && LABEL_FONT_OFFERED in runtime.terminalFont.families)
+            ChoiceOption("label weight", Style.LABEL_WEIGHT, style)
             Flag("recent apps", "shown", "hidden", style, Style.RECENT_APPS)
             CountOption("columns", Style.COLUMNS, style)
             Flag("notification dots", "shown", "hidden", style, Style.NOTIFICATION_DOTS)
@@ -472,6 +474,22 @@ private fun CountOption(
 ) {
     val counts = setting.range.toList()
     StyleOption(label, counts.map(Int::toString), counts.indexOf(style.style[setting])) { i -> style.update { it.with(setting, counts[i]) } }
+}
+
+/** The label font from the guest's fonts that the menu offers beside the system's; style.toml takes any. */
+private const val LABEL_FONT_OFFERED = "JetBrains Mono"
+
+/** The names under icons in the system's monospace or, once Linux has it, [LABEL_FONT_OFFERED]. */
+@Composable
+private fun LabelFontOption(
+    style: StyleStore,
+    offered: Boolean,
+) {
+    val families = if (offered) listOf(null, LABEL_FONT_OFFERED) else listOf(null)
+    val family = style.style[Style.LABEL_FONT]
+    StyleOption("label font", families.map { it ?: "system" }, families.indexOf(family), family) { i ->
+        style.update { it.with(Style.LABEL_FONT, families[i]) }
+    }
 }
 
 /** A [Style] choice as its options. */
