@@ -59,7 +59,8 @@ fun FolderTile(
             .pointerInput(folder.key) { detectTapGestures(onTap = { onTap() }) }
             .padding(4.dp),
     ) {
-        val showLabel = showsLabel()
+        // A folder is told apart by its name, so it keeps its label even where app tiles drop theirs.
+        val showLabel = showsLabel() || folder.name != null
         val badge = tileIconSize(showLabel)
         Column(
             Modifier.fillMaxSize(),
