@@ -216,6 +216,7 @@ class WidgetEngine(
                     }
                 }
             },
+            layout.columns,
         )
 
     private fun layoutPin(s: Shortcut): LayoutPin? =
@@ -223,8 +224,9 @@ class WidgetEngine(
 
     /**
      * Sets the home screen up as [read] says, as far as this phone has its apps and widgets (see [resolveLayout]):
-     * every pinned app and folder is replaced, and listed widgets move to their cells. Widgets it doesn't list stay
-     * where they are, unless a listed tile now covers them: then they're placed afresh.
+     * every pinned app and folder is replaced, and listed widgets move to their cells. A tile landing on one listed
+     * before it on its page, as on a grid narrower than the file's, is placed afresh, and so are widgets it doesn't
+     * list that a listed tile now covers; other widgets stay where they are.
      */
     fun importLayout(read: LayoutRead.Read): LayoutImport {
         val catalog = runtime.androidApps
@@ -238,21 +240,22 @@ class WidgetEngine(
                 is LayoutPin.Linux -> pinOf(p.app, page)
                 is LayoutPin.AppShortcut -> catalog.shortcuts.filter { it.ref == p.ref }.ownProfileFirst { it.profile }?.let { pinOf(it, page) }
             }
-        val result = resolveLayout(read, installed = { pin(it, 1) != null }, widgets = specs.map { it.file.name }.toSet())
+        val result = resolveLayout(read, installed = { pin(it, 1) != null }, widgets = specs.map { it.file.name }.toSet(), layout.columns)
         val stamp = System.currentTimeMillis().toString(36)
-        val placed = ArrayList<Pair<HomeItem, Cell>>()
+        val placed = ArrayList<Pair<HomeItem, Cell?>>()
         val taken = ArrayList<Pair<Int, Cell>>()
         result.layout.pages.forEachIndexed { i, entries ->
             val page = i + 1
             entries.forEachIndexed { n, e ->
                 val cell = if (e is LayoutEntry.Widget) Cell(e.x, e.y, e.w, e.h) else Cell(e.x, e.y, 1, 1)
+                val free = cell.takeIf { taken.none { (p, c) -> p == page && c.overlaps(cell) } }
                 taken += page to cell
                 when (e) {
-                    is LayoutEntry.Pin -> pin(e.pin, page)?.let { placed += it to cell }
-                    is LayoutEntry.Folder -> placed += Folder("folder:$stamp-$page-$n", page, e.apps.mapNotNull { pin(it, page) }, e.name) to cell
+                    is LayoutEntry.Pin -> pin(e.pin, page)?.let { placed += it to free }
+                    is LayoutEntry.Folder -> placed += Folder("folder:$stamp-$page-$n", page, e.apps.mapNotNull { pin(it, page) }, e.name) to free
                     is LayoutEntry.Widget -> {
                         specs.firstOrNull { it.file.name == e.file }?.let { moveToPage(WidgetItem(it), page) }
-                        layout.set(e.file, cell)
+                        if (free != null) layout.set(e.file, free) else layout.unplace(e.file)
                     }
                 }
             }

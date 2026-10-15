@@ -231,10 +231,10 @@ class Shortcuts(
     }
 
     /**
-     * Replaces every pinned app and folder with [placed], each at its cell; a folder brings its apps along.
-     * A folder of fewer than two apps goes, as when its apps are dragged out.
+     * Replaces every pinned app and folder with [placed], each at its cell, or without one to be placed afresh;
+     * a folder brings its apps along. A folder of fewer than two apps goes, as when its apps are dragged out.
      */
-    fun replace(placed: List<Pair<HomeItem, Cell>>) {
+    fun replace(placed: List<Pair<HomeItem, Cell?>>) {
         (items.map { it.key } + folderEntries.map { it.key }).forEach(layout::unplace)
         items.clear()
         folderEntries.clear()
@@ -247,7 +247,7 @@ class Shortcuts(
                 }
                 is WidgetItem -> continue
             }
-            layout.set(item.key, cell)
+            cell?.let { layout.set(item.key, it) }
         }
         tidy()
         layout.save()

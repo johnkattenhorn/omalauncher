@@ -2,6 +2,7 @@ package dev.omalauncher.widgets
 
 import dev.omalauncher.ShortcutRef
 import dev.omalauncher.linux.LinuxApp
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -59,6 +60,50 @@ class HomeLayoutTest {
         assertEquals(LayoutRead.Read(layout, unknown = 0), parseLayout(layout.toJson()))
     }
 
+    @Test fun readsAndWritesItsColumns() {
+        val text =
+            """
+            {"omalauncher-layout": 1, "columns": 5, "pages": [[
+              {"app": "com.whatsapp/com.whatsapp.Main", "x": 4, "y": 0},
+              {"app": "com.reddit.frontpage/com.reddit.launch.main.MainActivity", "x": 5, "y": 0},
+              {"widget": "a.owl", "x": 0, "y": 1, "w": 5, "h": 2}
+            ]]}
+            """
+        val layout = HomeLayout(listOf(listOf(LayoutEntry.Pin(whatsapp, 4, 0), LayoutEntry.Widget("a.owl", 0, 1, 5, 2))), columns = 5)
+        assertEquals(LayoutRead.Read(layout, unknown = 1), parseLayout(text))
+        assertEquals(LayoutRead.Read(layout, unknown = 0), parseLayout(layout.toJson()))
+        assertEquals(5, JSONObject(layout.toJson()).getInt("columns"))
+        assertEquals(LayoutRead.Rejected("not a layout file: 0 columns"), parseLayout("""{"omalauncher-layout": 1, "columns": 0, "pages": []}"""))
+    }
+
+    @Test fun resolvesOntoTheGridsColumns() {
+        val text =
+            """
+            {"omalauncher-layout": 1, "pages": [[
+              {"widget": "a.owl", "x": 0, "y": 0, "w": 6, "h": 2},
+              {"widget": "b.owl", "x": 3, "y": 2, "w": 3, "h": 2},
+              {"app": "com.whatsapp/com.whatsapp.Main", "x": 0, "y": 4},
+              {"app": "com.reddit.frontpage/com.reddit.launch.main.MainActivity", "x": 1, "y": 4},
+              {"folder": "", "x": 5, "y": 4, "apps": ["org.thoughtcrime.securesms/.RoutingActivity", "com.reddit.frontpage/com.reddit.launch.main.MainActivity"]}
+            ]]}
+            """
+        assertEquals(
+            HomeLayout(
+                listOf(
+                    listOf(
+                        LayoutEntry.Widget("a.owl", 0, 0, 5, 2),
+                        LayoutEntry.Widget("b.owl", 2, 2, 2, 2),
+                        LayoutEntry.Pin(whatsapp, 0, 4),
+                        LayoutEntry.Pin(reddit, 0, 4),
+                        LayoutEntry.Folder(null, listOf(signal), 4, 4),
+                    ),
+                ),
+                columns = 5,
+            ),
+            resolveLayout(read(text), installed = { true }, widgets = setOf("a.owl", "b.owl"), columns = 5).layout,
+        )
+    }
+
     @Test fun rejectsOtherVersionsAndFiles() {
         assertEquals(LayoutRead.Rejected("layout version 2; this launcher reads version 1"), parseLayout("""{"omalauncher-layout": 2, "pages": []}"""))
         assertEquals(LayoutRead.Rejected("not a layout file"), parseLayout("""{"pages": []}"""))
@@ -107,7 +152,7 @@ class HomeLayoutTest {
             ]}
             """
         val installed = setOf<LayoutPin>(whatsapp, reddit, foot, LayoutPin.Linux(LinuxApp("Foot (old)", "foot", false, "foot", null)))
-        val result = resolveLayout(read(text), installed = { it in installed }, widgets = setOf("10-today.owl", "other.owl"))
+        val result = resolveLayout(read(text), installed = { it in installed }, widgets = setOf("10-today.owl", "other.owl"), columns = 6)
         assertEquals(
             LayoutImport(
                 HomeLayout(
@@ -130,6 +175,6 @@ class HomeLayoutTest {
 
     @Test fun summaryWithNothingSkipped() {
         val layout = HomeLayout(listOf(listOf(LayoutEntry.Folder("Social", listOf(whatsapp, reddit), 0, 0), LayoutEntry.Widget("a.owl", 1, 0, 2, 2))))
-        assertEquals("placed 2 apps, 1 folder, 1 widget", resolveLayout(LayoutRead.Read(layout, 0), { true }, setOf("a.owl")).summary())
+        assertEquals("placed 2 apps, 1 folder, 1 widget", resolveLayout(LayoutRead.Read(layout, 0), { true }, setOf("a.owl"), 6).summary())
     }
 }

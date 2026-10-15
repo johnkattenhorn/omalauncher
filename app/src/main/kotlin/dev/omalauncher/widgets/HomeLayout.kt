@@ -22,7 +22,7 @@ sealed interface LayoutPin {
     ) : LayoutPin
 }
 
-/** One thing on a home page, its top-left at cell [x], [y] of the [CLASSIC_COLUMNS]-wide grid. Apps and folders are 1x1. */
+/** One thing on a home page, its top-left at cell [x], [y] of its [HomeLayout]'s grid. Apps and folders are 1x1. */
 sealed interface LayoutEntry {
     val x: Int
     val y: Int
@@ -52,14 +52,29 @@ sealed interface LayoutEntry {
 
 /**
  * A home screen as a file, to set one up in one go or carry it to another phone:
- * `{"omalauncher-layout": 1, "pages": [[entry, …], …]}`, the first page being home's first.
+ * `{"omalauncher-layout": 1, "columns": 6, "pages": [[entry, …], …]}`, the first page being home's first,
+ * on a grid [columns] wide (6 when the file doesn't say).
  * An entry is `{"app": "package/class"}`, `{"linux": {desktop entry}}`, `{"shortcut": {"package", "id"}}`,
  * `{"folder": name, "apps": [app, …]}` or `{"widget": file, "w", "h"}`, each with its cell's `"x"` and `"y"`.
  * In a folder, an Android app may be just its `"package/class"`.
  */
 data class HomeLayout(
     val pages: List<List<LayoutEntry>>,
+    val columns: Int = CLASSIC_COLUMNS,
 )
+
+/** This layout on a grid of [to] columns, each entry's cell moved as [Cell.rescaled] moves it. */
+fun HomeLayout.rescaled(to: Int): HomeLayout {
+    fun moved(e: LayoutEntry): LayoutEntry {
+        val c = Cell(e.x, e.y, (e as? LayoutEntry.Widget)?.w ?: 1, 1).rescaled(columns, to)
+        return when (e) {
+            is LayoutEntry.Pin -> e.copy(x = c.x)
+            is LayoutEntry.Folder -> e.copy(x = c.x)
+            is LayoutEntry.Widget -> e.copy(x = c.x, w = c.w)
+        }
+    }
+    return HomeLayout(pages.map { it.map(::moved) }, to)
+}
 
 /** A layout file read, or why it can't be. */
 sealed interface LayoutRead {
@@ -82,6 +97,8 @@ fun parseLayout(text: String): LayoutRead {
     val version = root.opt(FORMAT) ?: return LayoutRead.Rejected("not a layout file")
     if (version != VERSION) return LayoutRead.Rejected("layout version $version; this launcher reads version $VERSION")
     val pages = root.optJSONArray("pages") ?: return LayoutRead.Rejected("not a layout file: no pages")
+    val columns = root.optInt("columns", CLASSIC_COLUMNS)
+    if (columns < 1) return LayoutRead.Rejected("not a layout file: $columns columns")
     var unknown = 0
 
     fun <T : Any> counted(value: T?) = value.also { if (it == null) unknown++ }
@@ -90,25 +107,27 @@ fun parseLayout(text: String): LayoutRead {
             (0 until pages.length()).map { p ->
                 val page = pages.optJSONArray(p) ?: JSONArray()
                 (0 until page.length()).mapNotNull { i ->
-                    counted(runCatching { parseEntry(page.getJSONObject(i)) { counted(parsePin(it)) } }.getOrNull())
+                    counted(runCatching { parseEntry(page.getJSONObject(i), columns) { counted(parsePin(it)) } }.getOrNull())
                 }
             },
+            columns,
         )
     return LayoutRead.Read(layout, unknown)
 }
 
 private fun parseEntry(
     o: JSONObject,
+    columns: Int,
     folderApp: (Any) -> LayoutPin?,
 ): LayoutEntry? {
     val x = o.getInt("x")
     val y = o.getInt("y")
-    if (x !in 0 until CLASSIC_COLUMNS || y < 0) return null
+    if (x !in 0 until columns || y < 0) return null
     return when {
         o.has("widget") -> {
             val w = o.getInt("w")
             val h = o.getInt("h")
-            if (w !in 1..CLASSIC_COLUMNS - x || h < 1) return null
+            if (w !in 1..columns - x || h < 1) return null
             LayoutEntry.Widget(o.getString("widget"), x, y, w, h)
         }
         o.has("folder") -> {
@@ -139,6 +158,7 @@ private fun parsePin(value: Any): LayoutPin? =
 fun HomeLayout.toJson(): String =
     JSONObject()
         .put(FORMAT, VERSION)
+        .put("columns", columns)
         .put("pages", JSONArray(pages.map { page -> JSONArray(page.map(::entryJson)) }))
         .toString(1)
 
@@ -175,13 +195,14 @@ data class LayoutImport(
 )
 
 /**
- * [read] as it applies to this phone: apps [installed] says aren't there, widgets whose file isn't among [widgets],
- * and anything listed again after its first place are left out and counted.
+ * [read] as it applies to this phone, on its grid of [columns]: apps [installed] says aren't there, widgets whose
+ * file isn't among [widgets], and anything listed again after its first place are left out and counted.
  */
 fun resolveLayout(
     read: LayoutRead.Read,
     installed: (LayoutPin) -> Boolean,
     widgets: Set<String>,
+    columns: Int,
 ): LayoutImport {
     var notInstalled = 0
     var missing = 0
@@ -194,8 +215,9 @@ fun resolveLayout(
             !seen.add(pin.identity) -> false.also { repeated++ }
             else -> true
         }
+    val layout = read.layout.rescaled(columns)
     val pages =
-        read.layout.pages.map { page ->
+        layout.pages.map { page ->
             page.mapNotNull { e ->
                 when (e) {
                     is LayoutEntry.Pin -> e.takeIf { keep(it.pin) }
@@ -209,7 +231,7 @@ fun resolveLayout(
                 }
             }
         }
-    return LayoutImport(HomeLayout(pages), LayoutSkips(read.unknown, notInstalled, missing, repeated))
+    return LayoutImport(HomeLayout(pages, columns), LayoutSkips(read.unknown, notInstalled, missing, repeated))
 }
 
 private val LayoutPin.identity
