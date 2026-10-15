@@ -194,17 +194,7 @@ class Shortcuts(
     }
 
     private fun parse(o: JSONObject): Shortcut {
-        val linux =
-            o.optJSONObject("linux")?.let {
-                LinuxApp(
-                    name = it.getString("name"),
-                    exec = it.getString("exec"),
-                    terminal = it.optBoolean("terminal"),
-                    id = it.getString("id"),
-                    wmClass = it.optString("wmClass").ifEmpty { null },
-                    icon = it.optString("icon").ifEmpty { null },
-                )
-            }
+        val linux = o.optJSONObject("linux")?.let(::linuxSnapshot)
         return Shortcut(
             key = o.getString("key"),
             page = o.optInt("page", 1),
@@ -292,18 +282,7 @@ class Shortcuts(
             s.profile?.let { o.put("profile", it) }
             s.androidShortcut?.let { o.put("shortcut", JSONObject().put("package", it.packageName).put("id", it.id)) }
             // A snapshot of the desktop entry, for when it's gone; while it exists, the launcher runs the current one.
-            s.linux?.let {
-                o.put(
-                    "linux",
-                    JSONObject()
-                        .put("name", it.name)
-                        .put("exec", it.exec)
-                        .put("terminal", it.terminal)
-                        .put("id", it.id)
-                        .putOpt("wmClass", it.wmClass)
-                        .putOpt("icon", it.icon),
-                )
-            }
+            s.linux?.let { o.put("linux", linuxSnapshot(it)) }
             array.put(o)
         }
         val folders = JSONArray()
@@ -321,3 +300,23 @@ class Shortcuts(
         const val VERSION = 1
     }
 }
+
+/** A pinned Linux app's desktop entry as saved, here and in layout files. */
+internal fun linuxSnapshot(app: LinuxApp): JSONObject =
+    JSONObject()
+        .put("name", app.name)
+        .put("exec", app.exec)
+        .put("terminal", app.terminal)
+        .put("id", app.id)
+        .putOpt("wmClass", app.wmClass)
+        .putOpt("icon", app.icon)
+
+internal fun linuxSnapshot(o: JSONObject) =
+    LinuxApp(
+        name = o.getString("name"),
+        exec = o.getString("exec"),
+        terminal = o.optBoolean("terminal"),
+        id = o.getString("id"),
+        wmClass = o.optString("wmClass").ifEmpty { null },
+        icon = o.optString("icon").ifEmpty { null },
+    )
