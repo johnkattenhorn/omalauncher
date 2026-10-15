@@ -54,12 +54,14 @@ import dev.omalauncher.wayland.OutputInfo
 import dev.omalauncher.wayland.WaylandServer
 import dev.omalauncher.wayland.XdgToplevel
 import dev.omalauncher.widgets.Shortcut
+import dev.omalauncher.widgets.runtime.NotificationDots
 import dev.omalauncher.widgets.WidgetEngine
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -130,6 +132,10 @@ class Runtime(
 
     private val prefs = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
+    /** The apps whose icons show a notification dot, while style.toml's home.notification-dots is on. */
+    var notificationDots by mutableStateOf(NotificationDots())
+        private set
+
     /**
      * The first-run screen is done: from then on the home screen shows, with
      * or without Linux. Installs from before Linux was optional count as done.
@@ -155,6 +161,12 @@ class Runtime(
         // foot.ini follows the terminal settings, from the Style menu or the file alike.
         scope.launch {
             snapshotFlow { style.style[Style.TERMINAL_FONT] to style.style[Style.TERMINAL_TEXT] }.drop(1).collect { terminalFont.write() }
+        }
+        scope.launch {
+            snapshotFlow { style.style[Style.NOTIFICATION_DOTS] }.collectLatest { on ->
+                notificationDots = NotificationDots()
+                if (on) widgets.notifications.dots().collect { notificationDots = it }
+            }
         }
         androidApps.onInstalled = { app -> if (style.style[Style.ADD_NEW_APPS]) widgets.pinNew(app) }
         androidApps.start()

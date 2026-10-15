@@ -4,8 +4,12 @@ import android.app.ActivityOptions
 import android.app.Notification
 import android.content.Context
 import android.os.Build
+import android.os.Process
 import android.os.UserHandle
+import android.os.UserManager
+import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import androidx.compose.runtime.Immutable
 import dev.omalauncher.widgets.lang.Lst
 import dev.omalauncher.widgets.lang.Null
 import dev.omalauncher.widgets.lang.Num
@@ -13,8 +17,10 @@ import dev.omalauncher.widgets.lang.Obj
 import dev.omalauncher.widgets.lang.Str
 import dev.omalauncher.widgets.lang.Value
 import dev.omalauncher.widgets.lang.bool
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 /**
@@ -79,6 +85,26 @@ class Notifications(
     /** Emits whenever a notification is posted or removed, or access is granted or revoked. */
     fun updates(): Flow<Value> = MediaListener.changes.map { value() }.distinctUntilChanged()
 
+    /** Whether the user granted notification access, which [dots] need as widgets do. */
+    val granted get() = media.granted
+
+    /** Home's notification dots, now and as [updates] changes them; none without access. */
+    fun dots(): Flow<NotificationDots> = MediaListener.changes.map { dotsNow() }.distinctUntilChanged().flowOn(Dispatchers.IO)
+
+    /** The apps of what a widget would list, but those whose channel has dots turned off. */
+    private fun dotsNow(): NotificationDots {
+        if (!media.granted) return NotificationDots()
+        val rankings = runCatching { MediaListener.connected?.currentRanking }.getOrNull()
+        val ranking = NotificationListenerService.Ranking()
+        val users = context.getSystemService(UserManager::class.java)
+        val me = Process.myUserHandle()
+        return NotificationDots(
+            shown()
+                .filterNot { rankings?.getRanking(it.key, ranking) == true && !ranking.canShowBadge() }
+                .mapTo(HashSet()) { AppInProfile(it.packageName, if (it.user == me) null else users.getSerialNumberForUser(it.user)) },
+        )
+    }
+
     /** "open" runs the notification's tap action, "dismiss" clears it; without access, opens the setting that grants it. */
     fun control(
         command: String,
@@ -108,4 +134,19 @@ class Notifications(
     companion object {
         private const val MAX_ITEMS = 50
     }
+}
+
+/** An app as its notifications name it: its package, in a profile as in [dev.omalauncher.AndroidApp.profile]. */
+data class AppInProfile(
+    val packageName: String,
+    val profile: Long?,
+)
+
+/** The apps with a notification that earns a dot on their icons, as stock launchers draw. */
+@Immutable
+data class NotificationDots(
+    private val apps: Set<AppInProfile> = emptySet(),
+) {
+    /** Whether a tile that opens [opens] shows a dot: an app, or a folder's apps, any of which has one. */
+    fun on(opens: List<AppInProfile>) = opens.any { it in apps }
 }

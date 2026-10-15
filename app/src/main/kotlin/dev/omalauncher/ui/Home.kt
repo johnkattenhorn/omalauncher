@@ -54,6 +54,7 @@ import androidx.compose.runtime.collectAsState
 import dev.omalauncher.Runtime
 import dev.omalauncher.widgets.editWidgetCommand
 import dev.omalauncher.widgets.fixDependenciesCommand
+import dev.omalauncher.widgets.runtime.AppInProfile
 
 /** Home pages of JSON widgets on a snap grid, bordered and gapped like Omarchy windows. */
 @Composable
@@ -346,6 +347,7 @@ fun HomeScreen(
                             },
                             paused = runtime.androidApps.paused(item.profile),
                             clone = runtime.androidApps.cloned(item.profile),
+                            dot = runtime.notificationDots.on(listOfNotNull(item.notifier())),
                         )
                     is Folder ->
                         FolderTile(
@@ -355,6 +357,7 @@ fun HomeScreen(
                             focused = highlighted,
                             modifier = tile,
                             onTap = { arrange.folder = item.key },
+                            dot = runtime.notificationDots.on(item.apps.mapNotNull { it.notifier() }),
                         )
                 }
             },
@@ -396,3 +399,5 @@ fun HomeScreen(
     }
 }
 
+/** The app whose notifications put a dot on [this] tile; null for a Linux app or an app's shortcut. */
+private fun Shortcut.notifier() = component?.let { AppInProfile(it.packageName, profile) }

@@ -107,6 +107,10 @@ fun StyleScreen(
             Flag("home apps", "boxed", "icon only", style, Style.APP_TILES)
             Flag("recent apps", "shown", "hidden", style, Style.RECENT_APPS)
             CountOption("columns", Style.COLUMNS, style)
+            Flag("notification dots", "shown", "hidden", style, Style.NOTIFICATION_DOTS)
+            if (style.style[Style.NOTIFICATION_DOTS] && !runtime.widgets.notifications.granted) {
+                OptionHint("they need notification access, as media widgets do", Modifier.padding(bottom = 4.dp))
+            }
             Flag("new apps", "on home", "drawer only", style, Style.ADD_NEW_APPS)
             ChoiceOption("rotation", Style.ROTATION, style)
             NumberOption("corners", Corners.entries.map { it.label to it.scale.toDouble() }, Style.CORNER_SCALE, style)

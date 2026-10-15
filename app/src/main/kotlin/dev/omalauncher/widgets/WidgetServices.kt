@@ -91,7 +91,8 @@ class WidgetServices(
 
     /** What's playing on the phone. */
     private val media = Media(context)
-    private val notifications = Notifications(context, media, ::profileKind)
+    /** For `android.notifications`, and home's notification dots. */
+    val notifications = Notifications(context, media, ::profileKind)
     private val volume = Volume(context)
     private val alarm = Alarm(context)
     private val modes = Modes(context)

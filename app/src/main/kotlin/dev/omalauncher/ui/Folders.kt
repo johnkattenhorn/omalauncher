@@ -51,6 +51,8 @@ fun FolderTile(
     focused: Boolean,
     modifier: Modifier,
     onTap: () -> Unit,
+    /** One of its apps has a notification: a dot on the badge. */
+    dot: Boolean = false,
 ) {
     BoxWithConstraints(
         modifier
@@ -67,7 +69,7 @@ fun FolderTile(
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
         ) {
             Box(
-                Modifier.size(badge).clip(LauncherStyle.shape(badge / 3)).background(Palette.surface),
+                Modifier.size(badge).notificationDot(dot).clip(LauncherStyle.shape(badge / 3)).background(Palette.surface),
                 contentAlignment = Alignment.Center,
             ) {
                 val mini = badge * 0.36f

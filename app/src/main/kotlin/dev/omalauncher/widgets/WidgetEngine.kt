@@ -104,6 +104,9 @@ class WidgetEngine(
     /** The home screen's view, for haptic(); set by the UI. */
     var view by services::view
 
+    /** The phone's notifications, which widgets list and home's icons show dots for. */
+    val notifications get() = services.notifications
+
     /** The widget store. */
     val market = Market(this)
 

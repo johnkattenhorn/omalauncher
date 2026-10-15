@@ -17,6 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shadow
@@ -48,6 +52,8 @@ fun ShortcutTile(
     paused: Boolean = false,
     /** In a clone profile: read out as a clone, not a work app. */
     clone: Boolean = false,
+    /** Has a notification: a dot on the icon. */
+    dot: Boolean = false,
 ) {
     val mono = LauncherStyle.monochromeIcons
     val bare = LauncherStyle.bareAppIcons
@@ -71,7 +77,7 @@ fun ShortcutTile(
                 // Bare silhouettes and initials sit on a badge, as in the drawer, so they read on any wallpaper.
                 bare && (mono || bmp == null) ->
                     Box(
-                        Modifier.size(iconSize).clip(LauncherStyle.shape(iconSize / 2)).background(Palette.surface),
+                        Modifier.size(iconSize).notificationDot(dot).clip(LauncherStyle.shape(iconSize / 2)).background(Palette.surface),
                         contentAlignment = Alignment.Center,
                     ) {
                         if (bmp != null) {
@@ -81,10 +87,10 @@ fun ShortcutTile(
                         }
                     }
                 bmp != null ->
-                    Image(bmp, spoken, Modifier.size(iconSize), colorFilter = if (mono) ColorFilter.tint(Palette.accent) else null)
+                    Image(bmp, spoken, Modifier.size(iconSize).notificationDot(dot), colorFilter = if (mono) ColorFilter.tint(Palette.accent) else null)
                 else ->
                     // Apps without an icon get their initials.
-                    Box(Modifier.size(iconSize), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(iconSize).notificationDot(dot), contentAlignment = Alignment.Center) {
                         BasicText(initials(label), style = Mono.copy(color = Palette.accent, fontSize = (iconSize.value * 0.45f).sp))
                     }
             }
@@ -92,6 +98,24 @@ fun ShortcutTile(
         }
     }
 }
+
+/**
+ * An accent dot in the icon's top corner, for an app with a notification, as stock launchers draw it: round or square
+ * as the corners are, ringed in the background color so it stands apart from an accent silhouette.
+ */
+internal fun Modifier.notificationDot(dot: Boolean) =
+    if (!dot) {
+        this
+    } else {
+        drawWithContent {
+            drawContent()
+            val d = size.minDimension * 0.24f
+            val ring = 1.5.dp.toPx()
+            val corner = d / 2 * LauncherStyle.cornerScale.coerceAtMost(1f)
+            drawRoundRect(Palette.background, Offset(size.width - d, 0f), Size(d, d), CornerRadius(corner))
+            drawRoundRect(Palette.accent, Offset(size.width - d + ring, ring), Size(d - 2 * ring, d - 2 * ring), CornerRadius((corner - ring).coerceAtLeast(0f)))
+        }
+    }
 
 /** Whether a tile is tall enough to fit its label under the icon. */
 internal fun BoxWithConstraintsScope.showsLabel() = maxHeight > 64.dp

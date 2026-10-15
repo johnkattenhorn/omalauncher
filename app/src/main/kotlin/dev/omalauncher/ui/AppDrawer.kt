@@ -79,6 +79,7 @@ import androidx.compose.runtime.collectAsState
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.LinuxState
 import dev.omalauncher.linux.LinuxApp
+import dev.omalauncher.widgets.runtime.AppInProfile
 
 /** One app in the bar's results. */
 internal sealed interface AppHit {
@@ -98,6 +99,9 @@ internal sealed interface AppHit {
     /** In a paused work profile: shown dimmed, and opening it turns work apps back on. */
     fun paused(runtime: Runtime) = false
 
+    /** Has a notification dot on its icon. */
+    fun dotted(runtime: Runtime) = false
+
     data class Linux(
         val app: LinuxApp,
     ) : AppHit {
@@ -114,6 +118,8 @@ internal sealed interface AppHit {
         override val alias get() = if (app.profile != null) "${app.label} ${if (app.clone) "clone" else "work"}" else null
 
         override fun paused(runtime: Runtime) = runtime.androidApps.paused(app.profile)
+
+        override fun dotted(runtime: Runtime) = runtime.notificationDots.on(listOf(AppInProfile(app.component.packageName, app.profile)))
     }
 
     /** A shortcut an app put on the home screen, such as a website installed from a browser. */
@@ -258,7 +264,7 @@ private fun HitCell(
     selected: Boolean = false,
 ) {
     val (icon, mask) = hit.icons(runtime)
-    AppCell(hit.label, icon, mask, onClick = { handlers.launch(hit) }, actions = { hit.actions(handlers) }, shortcuts = { hit.shortcutMenu(handlers) }, selected = selected, spoken = hit.spoken, paused = hit.paused(runtime))
+    AppCell(hit.label, icon, mask, onClick = { handlers.launch(hit) }, actions = { hit.actions(handlers) }, shortcuts = { hit.shortcutMenu(handlers) }, selected = selected, spoken = hit.spoken, paused = hit.paused(runtime), dot = hit.dotted(runtime))
 }
 
 /** Height of the recent apps strip; home keeps this much room for it above the bar, even while it's empty. */
@@ -681,6 +687,8 @@ private fun AppCell(
     spoken: String = label,
     /** As in [AppHit.paused]: drawn dimmed, like stock launchers. */
     paused: Boolean = false,
+    /** As in [AppHit.dotted]. */
+    dot: Boolean = false,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
@@ -703,13 +711,13 @@ private fun AppCell(
         // Badges are circles when rounded, squares with Omarchy's sharp edges.
         val badge = LauncherStyle.shape(26.dp)
         if (mono && mask != null) {
-            Box(Modifier.size(52.dp).clip(badge).background(Palette.surface), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(52.dp).notificationDot(dot).clip(badge).background(Palette.surface), contentAlignment = Alignment.Center) {
                 Image(mask, spoken, Modifier.size(36.dp), colorFilter = ColorFilter.tint(Palette.accent))
             }
         } else if (!mono && icon != null) {
-            Image(icon, spoken, Modifier.size(52.dp))
+            Image(icon, spoken, Modifier.size(52.dp).notificationDot(dot))
         } else {
-            Box(Modifier.size(52.dp).clip(badge).background(Palette.surface), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(52.dp).notificationDot(dot).clip(badge).background(Palette.surface), contentAlignment = Alignment.Center) {
                 BasicText(initials(label), style = Mono.copy(color = Palette.accent, fontSize = TextSize.Title))
             }
         }
